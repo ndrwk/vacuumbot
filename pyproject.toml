@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "vacuumbot"
+version = "0.0.1"
+description = "Telegram bot for miio-compatible vacuums"
+authors = ["Andrew K <ndrwkalinin@gmain.com>"]
+repository = "https://github.com/ndrwk/vacuumbot"
+license = "GPL-3.0-only"
+readme = "README.md"
+keywords = ["xiaomi", "roborock", "vacuum", "miio", "bot", "telegram"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+loguru = "0.6.0"
+construct = "2.10.68"
+cryptography = "37.0.2"
+
+[tool.poetry.dev-dependencies]
+wemake-python-styleguide = "0.16.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
