@@ -13,6 +13,7 @@ python = ">=3.10,<4.0"
 loguru = "0.6.0"
 construct = "2.10.68"
 cryptography = "37.0.2"
+aiogram = "2.22.1"
 
 [tool.poetry.dev-dependencies]
 wemake-python-styleguide = "0.16.1"

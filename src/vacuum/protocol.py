@@ -1,3 +1,4 @@
+import json
 import socket
 import sys
 from asyncio import get_running_loop
@@ -22,7 +23,7 @@ class Vacuum:
         device_id: int,
         start_id: int = 0,
         timeout: int = 5,
-        debug: bool = False,
+        debug: bool = None,
     ) -> None:
         """Init a device connect.
 
@@ -42,6 +43,18 @@ class Vacuum:
         level = 'DEBUG' if debug else 'INFO'
         logger.remove()
         logger.add(sys.stderr, level=level)
+
+    def _to_iso(self, value: Any) -> str | None:
+        """Convert to iso string.
+
+        Args:
+            value: value to convert
+
+        Returns:
+            iso string or None
+        """
+        if isinstance(value, datetime):
+            return value.isoformat()
 
     async def send_command(
         self,
@@ -84,7 +97,10 @@ class Vacuum:
             },
             'checksum': 0,
         }
-        logger.debug(f'{self.ip}:{self.port} >> {msg}')
+        logger.debug(
+            f'Sent to {self.ip}:{self.port}\n'
+            f'{json.dumps(msg, indent=4, default=self._to_iso)}',
+        )
 
         message = Message.build(msg, token=self.token)
 
@@ -113,10 +129,15 @@ class Vacuum:
                 )
             logger.error('No response from the device')
             raise DeviceError('No response from the device') from ex
+        finally:
+            robot_socket.close()
 
         message = Message.parse(data, token=self.token)
         payload = message.data.value
-        logger.debug(f'{payload=}')
+        logger.debug(
+            'payload: \n'
+            f'{json.dumps(payload, indent=4, default=self._to_iso)}',
+        )
 
         self.start_id = payload['id']
         self.start_id = 0 if self.start_id >= 9999 else self.start_id + 1
