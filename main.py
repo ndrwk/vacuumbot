@@ -23,7 +23,7 @@ async def main():
         ip=config.get('vacuum').get('ip'),
         device_id=config.get('vacuum').get('id'),
         debug=config.get('debug'),
-        start_id=1111,
+        start_id=1,
     )
     # aa = await goto(robot, [23644, 26282])
     # print(aa)

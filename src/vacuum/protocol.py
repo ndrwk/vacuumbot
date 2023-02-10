@@ -1,7 +1,6 @@
+import asyncio
 import json
-import socket
 import sys
-from asyncio import get_running_loop
 from datetime import datetime
 from typing import Any
 
@@ -9,6 +8,41 @@ from loguru import logger
 
 from src.vacuum.exceptions import DeviceError
 from src.vacuum.message import Message
+
+
+class UDPSocket(asyncio.DatagramProtocol):
+    """UDP protocol."""
+
+    def __init__(self, request: bytes, response: asyncio.Future) -> None:
+        """Init the UDP protocol.
+
+        Args:
+            request: message to send to robot
+            response: result
+        """
+        self.request = request
+        self.response = response
+        self.transport = None
+
+    def connection_made(self, transport: asyncio.DatagramTransport) -> None:
+        """Called when a connection is made.
+
+        Args:
+            transport: transport
+        """
+        self.transport = transport
+        self.transport.sendto(self.request)
+
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+        """Called when some datagram is received.
+
+        Args:
+            data: data to send
+            addr: address
+        """
+        if addr == self.transport._address:
+            self.response.set_result(data)
+            self.transport.close()
 
 
 class Vacuum:
@@ -44,15 +78,7 @@ class Vacuum:
         logger.remove()
         logger.add(sys.stderr, level=level)
 
-    def _to_iso(self, value: Any) -> str | None:
-        """Convert to iso string.
-
-        Args:
-            value: value to convert
-
-        Returns:
-            iso string or None
-        """
+    def __to_iso(self, value: Any) -> str | None:
         if isinstance(value, datetime):
             return value.isoformat()
 
@@ -99,27 +125,22 @@ class Vacuum:
         }
         logger.debug(
             f'Sent to {self.ip}:{self.port}\n'
-            f'{json.dumps(msg, indent=4, default=self._to_iso)}',
+            f'{json.dumps(msg, indent=4, default=self.__to_iso)}',
         )
 
-        message = Message.build(msg, token=self.token)
-
-        robot_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        robot_socket.settimeout(self.timeout)
-        robot_socket.connect((self.ip, self.port))
-
-        event_loop = get_running_loop()
-
-        await event_loop.sock_sendall(robot_socket, message)
+        event_loop = asyncio.get_running_loop()
+        answer = event_loop.create_future()
+        transport, _ = await event_loop.create_datagram_endpoint(
+            lambda: UDPSocket(Message.build(msg, token=self.token), answer),
+            remote_addr=(self.ip, self.port),
+        )
 
         try:
-            data = await event_loop.sock_recv(robot_socket, 4096)
-        except OSError as ex:
+            data = await asyncio.wait_for(answer, self.timeout)
+        except asyncio.exceptions.TimeoutError as ex:
             if retry_count > 0:
                 retry_count -= 1
-                logger.debug(
-                    f'Retrying: {retry_count=}',
-                )
+                logger.debug(f'Retrying: {retry_count=}')
                 self.start_id += 1
                 return await self.send_command(
                     command,
@@ -130,13 +151,13 @@ class Vacuum:
             logger.error('No response from the device')
             raise DeviceError('No response from the device') from ex
         finally:
-            robot_socket.close()
+            transport.close()
 
         message = Message.parse(data, token=self.token)
         payload = message.data.value
         logger.debug(
             'payload: \n'
-            f'{json.dumps(payload, indent=4, default=self._to_iso)}',
+            f'{json.dumps(payload, indent=4, default=self.__to_iso)}',
         )
 
         self.start_id = payload['id']
