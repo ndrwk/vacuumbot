@@ -1,12 +1,9 @@
 import asyncio
-import logging
 
 import yaml
 
 from src.vacuum.command import get_status, goto, charge
 from src.vacuum.protocol import Vacuum
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def get_config():

@@ -42,7 +42,6 @@ class UDPSocket(asyncio.DatagramProtocol):
         """
         if addr == self.transport._address:
             self.response.set_result(data)
-            self.transport.close()
 
 
 class Vacuum:
@@ -76,7 +75,7 @@ class Vacuum:
         self.device_id = device_id
         level = 'DEBUG' if debug else 'INFO'
         logger.remove()
-        logger.add(sys.stderr, level=level)
+        logger.add(sys.stdout, level=level)
 
     def __to_iso(self, value: Any) -> str | None:
         if isinstance(value, datetime):
